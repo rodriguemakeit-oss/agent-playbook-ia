@@ -1,0 +1,383 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Agent Playbook AI API",
+    "description": "\nAgent **OpenAI-compatible** qui répond aux questions sur le **demo AI Playbook**\n(espace Confluence PLAYBOOKIA), propulsé par un RAG agentique s'appuyant uniquement sur\nles tables/index Databricks pré-construits (recherche vectorielle, résumés hiérarchiques, SQL).\n\n### Streaming\n`POST /v1/chat/completions` renvoie un flux **`text/event-stream`** au format\n*OpenAI Chat Completions chunk*, terminé par `data: [DONE]`.\n\nLes **appels d'outils** sont émis comme événements **structurés** sur\n`choices[0].delta.agent_event` (et **non** en markdown dans `delta.content`) :\n\n- `type: \"tool_call\"` — **début** d'un outil : `{ id, tool, args, seq, iteration }`.\n- `type: \"tool_result\"` — **fin** du même outil (même `id`) : `{ id, tool, status, length, preview }`.\n\nUn chunk d'outil porte `agent_event` **sans** `content` ; un chunk de réponse porte\n`content` **sans** `agent_event`. `delta.content` ne contient donc que la **vraie réponse**\n(plus de brèves notes _thinking/reformulation/mode_ et le footer sources/coût). Les clients\nOpenAI basiques ignorent le champ `agent_event`.\n\n> **Breaking** : la trace d'outils n'est plus dans `delta.content`. Les clients qui\n> l'affichaient via `content` doivent lire `delta.agent_event`.\n\n### Taux de confiance\nChaque réponse est notée **0-100** par un modèle **juge** séparé (cheap) et exposée en fin de\nflux via un `agent_event` de type `confidence` = `{ score, unsure, reason, logged }`. Si le\nscore est sous le seuil (`AIF_CONFIDENCE_THRESHOLD`, défaut 50) ou si `unsure` est vrai, la\nquestion/réponse est journalisée dans la table Databricks `AIF_UNSURE_TABLE` et une note est\najoutée à la réponse (`content`) pour informer l'utilisateur.\n\n### Authentification\nSi `AGENT_API_KEY` est configurée côté agent : envoyer `Authorization: Bearer <clé>`.\nDerrière le proxy OAuth des Databricks Apps, l'authentification est gérée par la plateforme\n(mode `OAUTH_CLIENT_CREDENTIALS`) et `AGENT_API_KEY` reste vide.\n\nVoir `AGENT-BACKEND-INTEGRATION.md` pour le contrat complet.\n",
+    "contact": {
+      "name": "demo Data Squad"
+    },
+    "version": "1.1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "summary": "Healthcheck",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Toujours {\"status\": \"ok\"} si le serveur tourne.",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/chat/completions": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Chat completion (SSE, OpenAI-compatible)",
+        "operationId": "chat_completions_v1_chat_completions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Flux `text/event-stream` de chunks OpenAI. Les appels d'outils sont émis sur `choices[0].delta.agent_event` (`tool_call`/`tool_result` appariés par `id`), la réponse token par token sur `delta.content`, terminé par `data: [DONE]`. Si `stream=false`, un unique objet JSON `chat.completion`.",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/logs": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "summary": "Logs récents (buffer mémoire, 500 lignes)",
+        "operationId": "get_logs_api_logs_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Attachment": {
+        "properties": {
+          "file_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Name",
+            "description": "Original file name; its extension drives type detection."
+          },
+          "mime_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mime Type",
+            "description": "MIME type reported by the backend."
+          },
+          "size_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Bytes",
+            "description": "Original size in bytes."
+          },
+          "truncated": {
+            "type": "boolean",
+            "title": "Truncated",
+            "description": "True if content_b64 was truncated by the backend (2 MB cap).",
+            "default": false
+          },
+          "content_b64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content B64",
+            "description": "Base64-encoded file content. Decoded and parsed (UniversalParser) into the agent context."
+          },
+          "message_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message Id",
+            "description": "Id of the message this attachment belongs to."
+          },
+          "message_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message Role",
+            "description": "Role of that message."
+          }
+        },
+        "type": "object",
+        "title": "Attachment"
+      },
+      "ChatRequest": {
+        "properties": {
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "Requested model. Only whitelisted Databricks models are honored; any other value (e.g. 'mock-agent') falls back to the default.",
+            "default": "databricks-claude-sonnet-4-6",
+            "examples": [
+              "databricks-claude-sonnet-4-6"
+            ]
+          },
+          "stream": {
+            "type": "boolean",
+            "title": "Stream",
+            "description": "If true, responds with `text/event-stream` (OpenAI chunk format). If false, returns a single JSON completion.",
+            "default": true
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/Message"
+            },
+            "type": "array",
+            "title": "Messages",
+            "description": "Full conversation history in chronological order. The last user message is the question; earlier messages are context."
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/Metadata",
+            "description": "Session metadata and attachments."
+          }
+        },
+        "type": "object",
+        "required": [
+          "messages"
+        ],
+        "title": "ChatRequest",
+        "examples": [
+          {
+            "messages": [
+              {
+                "content": "Quelles sont les grandes composantes du framework ?",
+                "role": "user"
+              }
+            ],
+            "metadata": {
+              "attachments": [],
+              "session_id": "abc123"
+            },
+            "model": "databricks-claude-sonnet-4-6",
+            "stream": true
+          }
+        ]
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Message": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "title": "Role",
+            "description": "Normalized to 'user' or 'assistant'.",
+            "examples": [
+              "user"
+            ]
+          },
+          "content": {
+            "type": "string",
+            "title": "Content",
+            "description": "Message text.",
+            "examples": [
+              "Quelles sont les grandes composantes du framework ?"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "content"
+        ],
+        "title": "Message"
+      },
+      "Metadata": {
+        "properties": {
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id",
+            "description": "Opaque session id (logging only)."
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id",
+            "description": "Opaque user id (logging only)."
+          },
+          "agent_slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Slug",
+            "description": "Agent identifier from the backend."
+          },
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/Attachment"
+            },
+            "type": "array",
+            "title": "Attachments",
+            "description": "Files uploaded by the user; decoded and injected into the agent context."
+          }
+        },
+        "type": "object",
+        "title": "Metadata"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "description": "API key (contract mode API_KEY). Omit when the agent is behind the Databricks Apps OAuth proxy.",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "chat",
+      "description": "Endpoint de complétion de chat (SSE, OpenAI-compatible)."
+    },
+    {
+      "name": "ops",
+      "description": "Santé et exploitation."
+    }
+  ]
+}

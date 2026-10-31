@@ -1,0 +1,10 @@
+# rev: 2026-07-31 — drop Confluence live-read tool (agent uses Databricks tables/index only)
+fastapi>=0.110,<1.0
+uvicorn[standard]>=0.29
+pydantic>=2.0
+mcp==1.28.1
+databricks-sdk
+databricks-vectorsearch>=0.40
+requests
+-e ../rag-foundry/smartchunking
+-e ../rag-foundry/smartagentic

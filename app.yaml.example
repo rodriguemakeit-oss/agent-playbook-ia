@@ -1,0 +1,30 @@
+command:
+  - python
+  - app.py
+
+env:
+  - name: DATABRICKS_WAREHOUSE_ID
+    value: "<sql-warehouse-id>"
+  - name: AIF_CATALOG
+    value: "agent_playbook_ai"
+  - name: AIF_SCHEMA
+    value: "default"
+  - name: AIF_TABLE
+    value: "ai_framework"
+  - name: AIF_VS_ENDPOINT
+    value: "smartchunking"
+  - name: AIF_MODEL
+    value: "databricks-claude-sonnet-4-6"
+  # Backend -> agent API key. Leave EMPTY behind the Databricks Apps OAuth proxy.
+  - name: AGENT_API_KEY
+    value: ""
+
+resources:
+  - name: sql-warehouse
+    sql_warehouse:
+      id: "<sql-warehouse-id>"
+      permission: CAN_USE
+  - name: serving-endpoint
+    serving_endpoint:
+      name: smartchunking
+      permission: CAN_QUERY

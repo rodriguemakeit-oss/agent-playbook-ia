@@ -1,0 +1,11 @@
+{
+  "run_name": "agent-playbook-ai-api-ingest",
+  "tasks": [
+    {
+      "task_key": "ingest",
+      "notebook_task": {
+        "notebook_path": "/Workspace/Users/contributor@example.com/agent-playbook-ai-api-ingest/ingest"
+      }
+    }
+  ]
+}

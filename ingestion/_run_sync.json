@@ -1,0 +1,11 @@
+{
+  "run_name": "agent-playbook-ai-api-sync",
+  "tasks": [
+    {
+      "task_key": "sync",
+      "notebook_task": {
+        "notebook_path": "/Workspace/Users/contributor@example.com/agent-playbook-ai-api-sync/sync"
+      }
+    }
+  ]
+}

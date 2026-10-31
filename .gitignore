@@ -1,0 +1,23 @@
+# Secrets / build artifacts — do NOT commit
+app.yaml
+_scratch/
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+.env
+
+# Generated evaluation outputs
+eval/_answers/
+
+# Local configuration and generated files
+.env
+.env.*
+!.env.example
+!.env.sample
+__pycache__/
+*.pyc
+.venv/
+node_modules/
+_scratch/
+*.log

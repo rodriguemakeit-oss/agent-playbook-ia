@@ -1,0 +1,26 @@
+{
+  "name": "agent-playbook-ai-api-sync-daily",
+  "tags": {
+    "project": "agent-playbook-ai-api",
+    "owner": "xg6708"
+  },
+  "max_concurrent_runs": 1,
+  "email_notifications": {
+    "on_success": ["example.invalid@emea.teams.ms"],
+    "on_failure": ["example.invalid@emea.teams.ms"],
+    "no_alert_for_skipped_runs": false
+  },
+  "schedule": {
+    "quartz_cron_expression": "0 0 5 * * ?",
+    "timezone_id": "Europe/Paris",
+    "pause_status": "UNPAUSED"
+  },
+  "tasks": [
+    {
+      "task_key": "sync",
+      "notebook_task": {
+        "notebook_path": "/Workspace/Users/contributor@example.com/agent-playbook-ai-api-sync/sync"
+      }
+    }
+  ]
+}
