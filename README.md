@@ -1,27 +1,24 @@
 # Agent Playbook
 
-API de recherche documentaire avec réponses en streaming compatibles OpenAI et événements d’outils structurés.
+A FastAPI service for document-grounded chat, streaming responses, and structured tool events.
 
-Version de portfolio maintenue sur [rodriguemakeit-oss](https://github.com/rodriguemakeit-oss).
+## What it demonstrates
 
-## Ce que le projet explore
+- An OpenAI-compatible chat completions endpoint
+- Server-sent events (SSE) for streaming answers and tool activity
+- A modular ingestion and retrieval layout
+- Contract-focused API tests
 
-API de recherche documentaire avec réponses en streaming compatibles OpenAI et événements d’outils structurés. L’accent est mis sur la séparation des composants, la configuration explicite et la réutilisation des traitements.
+## Repository map
 
-## Structure
+- `app.py` — API application
+- `ingestion/` — document ingestion components
+- `tests/` — API and streaming contract checks
 
-`app.py · ingestion/ · tests/`
+## Run locally
 
-## Prise en main
+See [GUIDE.md](GUIDE.md) for setup. The service requires your own retrieval backend, credentials, and data sources. No hosted service or document corpus is included.
 
-Consultez [GUIDE.md](GUIDE.md) pour les commandes et la configuration détaillées.
+## Scope
 
-Les valeurs de déploiement sont des exemples. Les identifiants nuls et les domaines `example.invalid` doivent être remplacés dans votre propre environnement. Aucun déploiement cloud n’est lancé automatiquement.
-
-## État du projet
-
-Cette adaptation nécessite vos propres services et jeux de données. Les contrôles locaux sont décrits dans [VALIDATION.md](VALIDATION.md) ; ils ne constituent pas une validation des intégrations cloud.
-
-## Contributions et licences
-
-Les noms de packages, crédits d’auteurs et avis tiers conservés dans les sources s’appliquent à leurs composants respectifs. Aucune licence globale supplémentaire n’est attribuée à ce dépôt.
+This is a portfolio adaptation for local review. Configuration examples are placeholders; cloud integration and production readiness must be validated in your environment. See [VALIDATION.md](VALIDATION.md) for the checks performed and their limits.
